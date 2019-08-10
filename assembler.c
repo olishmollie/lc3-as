@@ -4,8 +4,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "symbol.h"
+
 #define MAX_NUM_SYMBOLS 256
-#define MAX_SYMBOL_LEN 11
 #define MAX_STRING_LEN 1024
 #define NUM_INSTRUCTIONS 35
 #define IRFILE "intermediate.tmp"
@@ -37,27 +38,9 @@ typedef struct s_operation {
     int n, z, p;
 } Operation;
 
-typedef struct s_symbol {
-    char *name;
-    int value;
-    int type;
-
-    uint8_t hash;
-    struct s_symbol *next;
-} Symbol;
-
-typedef struct s_table {
-    int size;
-    int capacity;
-
-    Symbol *buckets[MAX_NUM_SYMBOLS];
-    Symbol store[MAX_NUM_SYMBOLS];
-    int sp; /* indexes store */
-} Table;
-
+Table symbolTable;
 FILE *infile, *irfile, *outfile;
 Operation opTable[NUM_INSTRUCTIONS];
-Table symTable;
 int lc = 0, ln = 1;
 
 void fatal(char *msg) {
@@ -180,100 +163,6 @@ void deleteOpTable() {
     }
 }
 
-void deleteSymTable() {
-    int i;
-    for (i = 0; i < MAX_NUM_SYMBOLS; i++) {
-        free(symTable.store[i].name);
-    }
-}
-
-void initSymTable(Table *this) {
-    this->size = 0;
-    this->capacity = MAX_NUM_SYMBOLS;
-    this->sp = 0;
-
-    int i;
-    for (i = 0; i < MAX_NUM_SYMBOLS; i++) {
-        this->buckets[i] = NULL;
-    }
-}
-
-uint8_t hash(char *str) {
-    uint8_t hash = 53;
-    uint8_t c;
-
-    while ((c = *str++))
-        hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
-
-    return hash;
-}
-
-void putSymbol(Table *table, Symbol *symbol) {
-    if (table->size == MAX_NUM_SYMBOLS) {
-        fatal("maximum number of symbols has been reached");
-    }
-    Symbol **entry = &table->buckets[symbol->hash];
-
-    while (*entry) {
-        *entry = (*entry)->next;
-    }
-    *entry = symbol;
-
-    table->size++;
-}
-
-Symbol *getSymbol(Table *table, char *name) {
-    if (table->size == 0) {
-        return NULL;
-    }
-    uint16_t h = hash(name);
-    Symbol *entry = table->buckets[h];
-
-    while (entry) {
-        if (entry->hash == h) {
-            if (strcmp(entry->name, name) == 0) {
-                return entry;
-            }
-        }
-        entry = entry->next;
-    }
-
-    return NULL;
-}
-
-/*
- * NewSymbol first checks if name has already been interned in
- * the symbol table; if so, it returns it. Otherwise, it creates
- * and interns the symbol before returning it. If type is 1, the
- * symbol is a label.
- */
-Symbol *newSymbol(char *name, int value, int type) {
-    Symbol *symbol;
-    if ((symbol = getSymbol(&symTable, name))) {
-        if (value != -1) {
-            symbol->value = value;
-        }
-        printf("%s->value = %d\n", symbol->name, symbol->value);
-        return symbol;
-    }
-
-    if (symTable.sp == MAX_NUM_SYMBOLS) {
-        fatal("maximum number of symbols reached");
-    }
-
-    symbol = &symTable.store[symTable.sp++];
-    symbol->name = malloc(sizeof(char) * (strlen(name) + 1));
-    strcpy(symbol->name, name);
-    symbol->value = value;
-    symbol->type = type;
-
-    symbol->hash = hash(name);
-    symbol->next = NULL;
-
-    putSymbol(&symTable, symbol);
-    return symbol;
-}
-
 void skipSpaces(char *line, int *pos) {
     char c = line[*pos];
     while (isspace(c) && c != '\n') {
@@ -288,7 +177,7 @@ void skipSpaces(char *line, int *pos) {
  *  to the symbol table, and returns -1.
  */
 int parseOperation(char *line, int *pos) {
-    char buf[MAX_SYMBOL_LEN], *bufp, c;
+    char buf[MAX_SYMBOL_LENGTH], *bufp, c;
     int opidx;
 
     skipSpaces(line, pos);
@@ -308,7 +197,7 @@ int parseOperation(char *line, int *pos) {
     }
 
     if (bufp - buf != 0) {
-        newSymbol(buf, lc, 0);
+        newSymbol(buf, lc);
     }
 
     return -1;
@@ -334,13 +223,13 @@ void parseString(char *line, int *pos) {
 }
 
 void parseLabel(char *line, int *pos) {
-    char buf[MAX_SYMBOL_LEN], *bufp, c;
+    char buf[MAX_SYMBOL_LENGTH], *bufp, c;
 
     bufp = buf;
     while ((c = line[*pos]) && !isspace(c) && c != ',' && c != '\n') {
         *bufp++ = c;
         (*pos)++;
-        if (bufp - buf >= MAX_SYMBOL_LEN - 1) {
+        if (bufp - buf >= MAX_SYMBOL_LENGTH - 1) {
             fatal("maximum symbol length reached");
         }
     }
@@ -348,7 +237,7 @@ void parseLabel(char *line, int *pos) {
 
     fprintf(irfile, "%s ", buf);
 
-    newSymbol(buf, -1, 0);
+    newSymbol(buf, -1);
 }
 
 void parseLiteral(char *line, int *pos) {
@@ -529,12 +418,12 @@ void assembleOp(uint16_t *instr) {
         break;
     }
     case BR: {
-        char str[MAX_SYMBOL_LEN];
+        char str[MAX_SYMBOL_LENGTH];
         nargs = fscanf(irfile, "%s", str);
         if (nargs != 1) {
             fatal("argument error in BR");
         }
-        Symbol *sym = getSymbol(&symTable, str);
+        Symbol *sym = getSymbol(&symbolTable, str);
         if (!sym) {
             fatal("unbound symbol in BR");
         }
@@ -545,12 +434,12 @@ void assembleOp(uint16_t *instr) {
     }
     case LD: {
         uint16_t dr;
-        char str[MAX_SYMBOL_LEN];
+        char str[MAX_SYMBOL_LENGTH];
         nargs = fscanf(irfile, "R%hu %s", &dr, str);
         if (nargs != 2) {
             fatal("argument error in LD");
         }
-        Symbol *sym = getSymbol(&symTable, str);
+        Symbol *sym = getSymbol(&symbolTable, str);
         if (!sym) {
             fatal("unbound symbol in LD");
         }
@@ -560,12 +449,12 @@ void assembleOp(uint16_t *instr) {
     }
     case LEA: {
         uint16_t dr;
-        char str[MAX_SYMBOL_LEN];
+        char str[MAX_SYMBOL_LENGTH];
         nargs = fscanf(irfile, "R%hu %s", &dr, str);
         if (nargs != 2) {
             fatal("argument error in LEA");
         }
-        Symbol *sym = getSymbol(&symTable, str);
+        Symbol *sym = getSymbol(&symbolTable, str);
         if (!sym) {
             fatal("unbound symbol in LEA");
         }
@@ -712,12 +601,12 @@ void cleanup() {
     fclose(infile);
     remove(IRFILE);
     deleteOpTable();
-    deleteSymTable();
+    deleteTable(&symbolTable);
 }
 
 int main(int argc, char **argv) {
     initOpTable();
-    initSymTable(&symTable);
+    initTable(&symbolTable);
 
     if (argc != 2) {
         printf("usage: blah blah blah\n");
