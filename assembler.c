@@ -1,9 +1,4 @@
-#include <ctype.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
+#include "operation.h"
 #include "symbol.h"
 
 #define MAX_NUM_SYMBOLS 256
@@ -12,35 +7,7 @@
 #define IRFILE "intermediate.tmp"
 #define OUTFILE "lc3.out"
 
-/* opcodes */
-enum {
-    BR = 0x0,
-    ADD = 0x1,
-    LD = 0x2,
-    ST = 0x3,
-    JSR = 0x4,
-    AND = 0x5,
-    LDR = 0x6,
-    STR = 0x7,
-    RTI = 0x8,
-    NOT = 0x9,
-    LDI = 0xa,
-    STI = 0xb,
-    JMP = 0xc,
-    LEA = 0xe,
-    TRAP = 0xf
-};
-
-typedef struct s_operation {
-    char *name;
-    uint16_t opcode;
-    int nargs;
-    int n, z, p;
-} Operation;
-
-Table symbolTable;
 FILE *infile, *irfile, *outfile;
-Operation opTable[NUM_INSTRUCTIONS];
 int lc = 0, ln = 1;
 
 void fatal(char *msg) {
@@ -50,94 +17,6 @@ void fatal(char *msg) {
     fclose(irfile);
     fclose(infile);
     exit(1);
-}
-
-Operation newOperation(char *name, uint16_t opcode, int nargs) {
-    Operation op;
-
-    op.name = malloc(sizeof(char) * (strlen(name) + 1));
-    strcpy(op.name, name);
-
-    op.opcode = opcode;
-    op.nargs = nargs;
-
-    op.n = op.z = op.p = 0;
-
-    return op;
-}
-
-int findOperation(char *name) {
-    int i;
-    for (i = 0; i < NUM_INSTRUCTIONS; i++) {
-        if (strcmp(name, opTable[i].name) == 0) {
-            return i;
-        }
-    }
-
-    return -1;
-}
-
-void delOperation(Operation *instr) {
-    free(instr->name);
-}
-
-void initOpTable(void) {
-    opTable[0] = newOperation("ADD", ADD, 3);
-    opTable[1] = newOperation("AND", AND, 3);
-
-    opTable[2] = newOperation("BRn", BR, 1);
-    opTable[2].n = 1;
-
-    opTable[3] = newOperation("BRp", BR, 1);
-    opTable[3].p = 1;
-
-    opTable[4] = newOperation("BRz", BR, 1);
-    opTable[4].z = 1;
-
-    opTable[5] = newOperation("BR", BR, 1);
-    opTable[5].n = opTable[5].p = opTable[5].z = 1;
-
-    opTable[6] = newOperation("BRzp", BR, 1);
-    opTable[6].z = opTable[6].p = 1;
-
-    opTable[7] = newOperation("BRnp", BR, 1);
-    opTable[7].n = opTable[7].p = 1;
-
-    opTable[8] = newOperation("BRnz", BR, 1);
-    opTable[8].z = opTable[8].n = 1;
-
-    opTable[9] = newOperation("BRnzp", BR, 1);
-    opTable[5].n = opTable[5].p = opTable[5].z = 1;
-
-    opTable[10] = newOperation("JMP", JMP, 1);
-    opTable[11] = newOperation("JSR", JSR, 1);
-    opTable[12] = newOperation("JSRR", JSR, 1);
-    opTable[13] = newOperation("LD", LD, 2);
-    opTable[14] = newOperation("LDI", LDI, 2);
-    opTable[15] = newOperation("LDR", LDR, 3);
-    opTable[16] = newOperation("LEA", LEA, 2);
-    opTable[17] = newOperation("NOT", NOT, 2);
-    opTable[18] = newOperation("RET", JMP, 0);
-    opTable[19] = newOperation("RTI", RTI, 0);
-    opTable[20] = newOperation("ST", ST, 2);
-    opTable[21] = newOperation("STI", STI, 2);
-    opTable[22] = newOperation("STR", STR, 3);
-    opTable[23] = newOperation("TRAP", TRAP, 1);
-
-    /* trap routines */
-    opTable[24] = newOperation("GETC", 0xf020, 0);
-    opTable[25] = newOperation("OUT", 0xf021, 0);
-    opTable[26] = newOperation("PUTS", 0xf022, 0);
-    opTable[27] = newOperation("IN", 0xf023, 0);
-    opTable[28] = newOperation("PUTSP", 0xf024, 0);
-    opTable[29] = newOperation("HALT", 0xf025, 0);
-
-    /* pseudo-ops */
-    opTable[30] = newOperation(".ORIG", 0xffff, 1);
-    opTable[31] = newOperation(".FILL", 0xffff, 1);
-    opTable[32] = newOperation(".BLKW", 0xffff, 1);
-    opTable[33] = newOperation(".STRINGZ", 0xffff, 1);
-    opTable[34] = newOperation(".END", 0xffff, 0);
 }
 
 int isOp(int opidx) {
@@ -152,17 +31,6 @@ int isDirective(int opidx) {
     return opidx >= 30 && opidx <= 34;
 }
 
-int isBranchInstr(int opidx) {
-    return opidx >= 2 && opidx <= 9;
-}
-
-void deleteOpTable() {
-    int i;
-    for (i = 0; i < NUM_INSTRUCTIONS; i++) {
-        delOperation(&opTable[i]);
-    }
-}
-
 void skipSpaces(char *line, int *pos) {
     char c = line[*pos];
     while (isspace(c) && c != '\n') {
@@ -172,7 +40,7 @@ void skipSpaces(char *line, int *pos) {
 
 /*
  *  ParseOperation parses one alphanumeric word from line.
- *  If the word is an Operation, it returns its opTable index.
+ *  If the word is an Operation, it returns its operations index.
  *  Otherwise, it assumes it's a label, adds it
  *  to the symbol table, and returns -1.
  */
@@ -322,7 +190,7 @@ void parseLine(char *line, int pos) {
             fatal("invalid syntax");
         }
     }
-    op = &opTable[opidx];
+    op = &operations[opidx];
 
     fprintf(irfile, "%d ", lc);
 
@@ -376,7 +244,7 @@ void assembleOp(uint16_t *instr) {
     int opidx, nargs;
 
     fscanf(irfile, "%d ", &opidx);
-    op = opTable[opidx];
+    op = operations[opidx];
 
     *instr |= (op.opcode << 12);
 
@@ -428,8 +296,7 @@ void assembleOp(uint16_t *instr) {
             fatal("unbound symbol in BR");
         }
         uint16_t offset = sym->value - (lc + 1);
-        *instr |=
-            (op.n << 11) | (op.z << 10) | (op.p << 9) | (offset & 0x1ff);
+        *instr |= (op.nzp << 9) | (offset & 0x1ff);
         break;
     }
     case LD: {
@@ -458,7 +325,7 @@ void assembleOp(uint16_t *instr) {
         if (!sym) {
             fatal("unbound symbol in LEA");
         }
-	uint16_t offset = sym->value - (lc + 1);
+        uint16_t offset = sym->value - (lc + 1);
         *instr |= (dr << 9) | (offset & 0x1f);
         break;
     }
@@ -476,8 +343,8 @@ void assembleOp(uint16_t *instr) {
 void assembleTrap(uint16_t *instr) {
     int opidx;
     fscanf(irfile, "%d", &opidx);
-    *instr |= opTable[opidx].opcode;
-    printf("writing TRAP \\x%x to file...\n", opTable[opidx].opcode & 0xfff);
+    *instr |= operations[opidx].opcode;
+    printf("writing TRAP \\x%x to file...\n", operations[opidx].opcode & 0xfff);
     fwrite(instr, sizeof(uint16_t), 1, outfile);
     while (getc(irfile) != '\n') {
     }
@@ -516,10 +383,10 @@ void assembleDirective(void) {
             fatal("argument error in .BLKW");
         }
         printf("writing BLKW %d to file...\n", n);
-	for (i = 0; i < n; i++) {
-	    uint16_t zero = 0;
-	    fwrite(&zero, sizeof(uint16_t), 1, outfile);
-	}
+        for (i = 0; i < n; i++) {
+            uint16_t zero = 0;
+            fwrite(&zero, sizeof(uint16_t), 1, outfile);
+        }
         break;
     }
     case 33: { /* .STRINGZ */
@@ -600,12 +467,10 @@ void cleanup() {
     fclose(irfile);
     fclose(infile);
     remove(IRFILE);
-    deleteOpTable();
     deleteTable(&symbolTable);
 }
 
 int main(int argc, char **argv) {
-    initOpTable();
     initTable(&symbolTable);
 
     if (argc != 2) {

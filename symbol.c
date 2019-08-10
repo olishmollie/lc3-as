@@ -75,7 +75,7 @@ Symbol *getSymbol(Table *table, char *name) {
     if (table->size == 0) {
         return NULL;
     }
-    uint16_t h = hash(name);
+    uint32_t h = hash(name);
     Symbol *entry = table->buckets[h % table->capacity];
 
     while (entry) {

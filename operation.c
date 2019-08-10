@@ -40,9 +40,9 @@ Operation operations[] = {
 
     /* Directives */
     {".ORIG", 0xffff, 1, 0},
-    {".STRINGZ", 0xffff, 1, 0},
-    {".BLKW", 0xffff, 1, 0},
     {".FILL", 0xffff, 1, 0},
+    {".BLKW", 0xffff, 1, 0},
+    {".STRINGZ", 0xffff, 1, 0},
     {".END", 0xffff, 0, 0}
 };
 
