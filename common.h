@@ -8,12 +8,12 @@
 #include <string.h>
 
 #define ALLOC(p, n)                                                            \
-    do {                                                                       \
+    {                                                                          \
         *p = calloc((n), sizeof(**p));                                         \
         if (*p == NULL) {                                                      \
             fprintf(stderr, "out of memory");                                  \
             exit(1);                                                           \
         }                                                                      \
-    } while (0)
+    }
 
 #endif

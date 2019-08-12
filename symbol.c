@@ -1,20 +1,7 @@
 #include "symbol.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
 #define INITIAL_CAPACITY 256
 #define LOAD_FACTOR 0.7
-
-#define ALLOC(p, n)                                                            \
-    do {                                                                       \
-        *p = calloc((n), sizeof(**p));                                         \
-        if (*p == NULL) {                                                      \
-            fprintf(stderr, "out of memory");                                  \
-            exit(1);                                                           \
-        }                                                                      \
-    } while (0)
 
 void initTable(Table *table) {
     table->size = 0;
@@ -90,9 +77,9 @@ Symbol *getSymbol(Table *table, char *name) {
     return NULL;
 }
 
-Symbol *newSymbol(char *name, int value) {
+Symbol *newSymbol(Table *table, char *name, int value) {
     Symbol *symbol;
-    if ((symbol = getSymbol(&symbolTable, name))) {
+    if ((symbol = getSymbol(table, name))) {
         if (value != -1) {
             symbol->value = value;
         }
@@ -109,11 +96,14 @@ Symbol *newSymbol(char *name, int value) {
     symbol->hash = hash(name);
     symbol->next = NULL;
 
-    putSymbol(&symbolTable, symbol);
+    putSymbol(table, symbol);
     return symbol;
 }
 
 void deleteSymbol(Symbol *symbol) {
+    if (symbol->next) {
+	deleteSymbol(symbol->next);
+    }
     free(symbol->name);
     free(symbol);
 }
@@ -121,8 +111,8 @@ void deleteSymbol(Symbol *symbol) {
 void deleteTable(Table *table) {
     int i;
     for (i = 0; i < table->capacity; i++) {
-        Symbol *symbol;
-        if ((symbol = table->buckets[i])) {
+        Symbol *symbol = table->buckets[i];
+        if (symbol) {
             deleteSymbol(symbol);
         }
     }

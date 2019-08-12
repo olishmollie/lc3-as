@@ -37,7 +37,7 @@ extern Operation operations[];
  * If found, it returns the index into the operations array.
  * Otherwise, it returns -1.
  */
-int findOperation(char *name);
+uint16_t findOperation(char *name);
 
 
 #endif

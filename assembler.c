@@ -65,7 +65,7 @@ int parseOperation(char *line, int *pos) {
     }
 
     if (bufp - buf != 0) {
-        newSymbol(buf, lc);
+        newSymbol(&symbolTable, buf, lc);
     }
 
     return -1;
@@ -105,7 +105,7 @@ void parseLabel(char *line, int *pos) {
 
     fprintf(irfile, "%s ", buf);
 
-    newSymbol(buf, -1);
+    newSymbol(&symbolTable, buf, -1);
 }
 
 void parseLiteral(char *line, int *pos) {

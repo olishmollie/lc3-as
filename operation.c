@@ -40,13 +40,13 @@ Operation operations[] = {
 
     /* Directives */
     {".ORIG", 0xffff, 1, 0},
-    {".FILL", 0xffff, 1, 0},
-    {".BLKW", 0xffff, 1, 0},
-    {".STRINGZ", 0xffff, 1, 0},
-    {".END", 0xffff, 0, 0}
+    {".FILL", 0xfffe, 1, 0},
+    {".BLKW", 0xfffd, 1, 0},
+    {".STRINGZ", 0xfffc, 1, 0},
+    {".END", 0xfffb, 0, 0}
 };
 
-int findOperation(char *name) {
+uint16_t findOperation(char *name) {
     uint16_t i;
     for (i = 0; i < NUM_OPS; i++) {
         if (strcmp(name, operations[i].name) == 0) {
@@ -54,5 +54,5 @@ int findOperation(char *name) {
         }
     }
 
-    return -1;
+    return 0xffff;
 }
