@@ -64,7 +64,7 @@ typedef struct Parser {
 } Parser;
 
 void initParser(Parser *parser, FILE *stream) {
-    parser->line = 0;
+    parser->line = 1;
     parser->stream = stream;
     parser->cur = getc(stream);
     parser->peek = getc(stream);
@@ -87,7 +87,7 @@ char advance(Parser *parser) {
     return parser->cur;
 }
 
-void skipwhitespace(Parser *parser) {
+void skipComments(Parser *parser) {
     while (!eof(parser)) {
         if (parser->cur == ';') {
             while (parser->cur != '\n') {
@@ -101,11 +101,18 @@ void skipwhitespace(Parser *parser) {
     }
 }
 
+void skipSpaces(Parser *parser) {
+    while (parser->cur == ' ' || parser->cur == '\t') {
+        advance(parser);
+    }
+}
+
 void expect(Parser *parser, char c) {
-    skipwhitespace(parser);
+    skipSpaces(parser);
     if (parser->cur != c) {
         fprintf(stderr, "expected '%c', got '%c'; line %d\n", c, parser->cur,
                 parser->line);
+        exit(1);
     }
     advance(parser);
 }
@@ -126,9 +133,8 @@ uint16_t isoperation(Operation *op) {
     return op->opcode >= 0 && op->opcode <= 0xe;
 }
 
-Symbol *parseSymbol(Parser *parser, Program *prog, Instr *instr,
-                    uint16_t label) {
-    skipwhitespace(parser);
+Symbol *parseLabel(Parser *parser, Program *prog, Instr *instr) {
+    skipSpaces(parser);
     char buf[MAX_SYM_LEN], *bp;
     uint16_t opidx;
     Symbol *symbol;
@@ -140,24 +146,25 @@ Symbol *parseSymbol(Parser *parser, Program *prog, Instr *instr,
     }
     *bp = '\0';
 
+    if (bp - buf == 0) {
+        fprintf(stderr, "expected symbol; line %d\n", parser->line);
+        exit(1);
+    }
+
     opidx = findOperation(buf);
     if (opidx != 0xffff) {
         instr->op = &operations[opidx];
         return NULL;
     }
 
-    if (label) {
-        symbol = newSymbol(&prog->symbolTable, buf, instr->lc);
-        instr->label = symbol;
-    } else {
-        symbol = newSymbol(&prog->symbolTable, buf, -1);
-    }
+    symbol = newSymbol(&prog->symbolTable, buf, instr->lc);
+    instr->label = symbol;
 
     return symbol;
 }
 
 uint16_t parseOp(Parser *parser) {
-    skipwhitespace(parser);
+    skipSpaces(parser);
     char buf[MAX_SYM_LEN], *bp;
 
     bp = buf;
@@ -177,7 +184,7 @@ uint16_t parseOp(Parser *parser) {
 }
 
 uint16_t parseRegister(Parser *parser) {
-    skipwhitespace(parser);
+    skipSpaces(parser);
     uint16_t reg;
 
     if (parser->cur != 'R' && parser->cur != 'r') {
@@ -197,7 +204,7 @@ uint16_t parseRegister(Parser *parser) {
 }
 
 uint16_t parseLiteral(Parser *parser) {
-    skipwhitespace(parser);
+    skipSpaces(parser);
     uint16_t val;
 
     val = 0;
@@ -233,7 +240,7 @@ uint16_t parseLiteral(Parser *parser) {
 }
 
 uint16_t parseString(Parser *parser, uint16_t *str) {
-    skipwhitespace(parser);
+    skipSpaces(parser);
     if (parser->cur != '"') {
         fprintf(stderr, "expected string literal argument; line %d\n",
                 parser->line);
@@ -242,7 +249,7 @@ uint16_t parseString(Parser *parser, uint16_t *str) {
     advance(parser);
 
     uint16_t len = 0;
-    while (!eof(parser) && parser->cur != '"' && len < MAX_STR_LEN - 1) {
+    while (!eof(parser) && parser->cur != '"' && len < MAX_STR_LEN) {
         str[len++] = (uint16_t)parser->cur;
         advance(parser);
     }
@@ -256,6 +263,31 @@ uint16_t parseString(Parser *parser, uint16_t *str) {
     advance(parser);
 
     return len + 1;
+}
+
+Symbol *parseSymbol(Parser *parser, Program *prog) {
+    skipSpaces(parser);
+    char buf[MAX_SYM_LEN], *bp;
+
+    bp = buf;
+    while (!isdelim(parser->cur) && bp - buf < MAX_SYM_LEN) {
+        *bp++ = parser->cur;
+        advance(parser);
+    }
+    *bp = '\0';
+
+    if (bp - buf == 0) {
+        fprintf(stderr, "expected symbol; line %d\n", parser->line);
+        exit(1);
+    }
+
+    if (findOperation(buf) != 0xffff) {
+        fprintf(stderr, "unexpected operation '%s'; line %d\n", buf,
+                parser->line);
+        exit(1);
+    }
+
+    return newSymbol(&prog->symbolTable, buf, -1);
 }
 
 void parseDirective(Parser *parser, Program *prog, Instr *instr) {
@@ -278,7 +310,7 @@ void parseDirective(Parser *parser, Program *prog, Instr *instr) {
 }
 
 void parseOperands(Parser *parser, Program *prog, Instr *instr) {
-    skipwhitespace(parser);
+    skipSpaces(parser);
 
     switch (instr->op->opcode) {
     case ADD:
@@ -286,7 +318,7 @@ void parseOperands(Parser *parser, Program *prog, Instr *instr) {
         instr->dr = parseRegister(parser);
         expect(parser, ',');
         instr->sr1 = parseRegister(parser);
-        skipwhitespace(parser);
+        skipSpaces(parser);
         if (toupper(parser->cur) == 'R') {
             instr->sr2 = parseRegister(parser);
         } else {
@@ -296,13 +328,13 @@ void parseOperands(Parser *parser, Program *prog, Instr *instr) {
     case LEA:
         instr->dr = parseRegister(parser);
         expect(parser, ',');
-        instr->pcoffset9 = parseSymbol(parser, prog, instr, 0);
+        instr->pcoffset9 = parseSymbol(parser, prog);
         break;
     }
 }
 
 void parseOrigin(Parser *parser, Program *prog) {
-    skipwhitespace(parser);
+    skipSpaces(parser);
     uint16_t opidx;
 
     opidx = parseOp(parser);
@@ -313,27 +345,32 @@ void parseOrigin(Parser *parser, Program *prog) {
         exit(1);
     }
     prog->lc = parseLiteral(parser);
+    skipComments(parser);
+}
+
+void parseInstr(Parser *parser, Program *prog) {
+    Instr *instr = nextInstr(prog);
+
+    if (parseLabel(parser, prog, instr)) {
+        uint16_t opidx = parseOp(parser);
+        instr->op = &operations[opidx];
+    }
+
+    if (isdirective(instr->op)) {
+        parseDirective(parser, prog, instr);
+    } else if (isoperation(instr->op)) {
+        parseOperands(parser, prog, instr);
+    }
+
+    skipComments(parser);
 }
 
 void parse(Parser *parser, Program *prog) {
+    skipComments(parser);
     parseOrigin(parser, prog);
 
     while (!eof(parser) && prog->lc < MAX_NUM_INSTR) {
-        Instr *instr = nextInstr(prog);
-
-        if (parseSymbol(parser, prog, instr, 1)) {
-            uint16_t opidx = parseOp(parser);
-            instr->op = &operations[opidx];
-        }
-	printf("instr->op->opcode = \\x%x\n", instr->op->opcode);
-
-        if (isdirective(instr->op)) {
-            parseDirective(parser, prog, instr);
-        } else if (isoperation(instr->op)) {
-            parseOperands(parser, prog, instr);
-        } 
-
-        skipwhitespace(parser); /* skip any trailing newlines */
+        parseInstr(parser, prog);
     }
 
     /* TODO - enforce last instruction be .END directive */
@@ -341,12 +378,13 @@ void parse(Parser *parser, Program *prog) {
 
 int fwriteSymbol(Symbol *symbol, FILE *sf) {
     if (symbol->next) {
-	if (!fwriteSymbol(symbol->next, sf)) {
-	    return 0;
-	}
+        if (!fwriteSymbol(symbol->next, sf)) {
+            return 0;
+        }
     }
-    if (fprintf(sf, "{\n\tname: %s\n\tvalue: \\x%x\n}\n", symbol->name, symbol->value) > 0) {
-	return 1;
+    if (fprintf(sf, "{\n\tname: %s\n\tvalue: \\x%x\n}\n", symbol->name,
+                symbol->value) > 0) {
+        return 1;
     }
     return 0;
 }
@@ -354,18 +392,18 @@ int fwriteSymbol(Symbol *symbol, FILE *sf) {
 void makeSymbolFile(Program *prog) {
     FILE *sf = fopen("symbol-table.txt", "w");
     if (!sf) {
-	fprintf(stderr, "unable to open symbol file\n");
-	return;
+        fprintf(stderr, "unable to open symbol file\n");
+        return;
     }
 
     fprintf(sf, "Symbol Table:\n");
 
     int i;
     for (i = 0; i < prog->symbolTable.capacity; i++) {
-	Symbol *symbol = prog->symbolTable.buckets[i];
-	if (symbol) {
-	    fwriteSymbol(symbol, sf);
-	}
+        Symbol *symbol = prog->symbolTable.buckets[i];
+        if (symbol) {
+            fwriteSymbol(symbol, sf);
+        }
     }
 
     fclose(sf);
@@ -375,15 +413,16 @@ void printProgram(Program *prog) {
     for (int i = 0; i < prog->size; i++) {
         Instr instr = prog->instructions[i];
         printf("{\n");
-	printf("\tlabel: %s\n", instr.label ? instr.label->name : "");
+        printf("\tlabel: %s\n", instr.label ? instr.label->name : "");
         printf("\tlc: \\x%x\n", instr.lc);
-	printf("\tname: %s\n", instr.op->name);
+        printf("\tname: %s\n", instr.op->name);
         printf("\topcode: \\x%x\n", instr.op->opcode);
         printf("\tdr: \\x%x\n", instr.dr);
         printf("\tsr1: \\x%x\n", instr.sr1);
         printf("\tsr2: \\x%x\n", instr.sr2);
         printf("\timm5: \\x%x\n", instr.imm5);
-	printf("\tpcoffset9: %s\n", instr.pcoffset9 ? instr.pcoffset9->name : "");
+        printf("\tpcoffset9: %s\n",
+               instr.pcoffset9 ? instr.pcoffset9->name : "");
         printf("}\n");
     }
 }
@@ -407,7 +446,6 @@ int main(void) {
     parse(&parser, &prog);
     printProgram(&prog);
     makeSymbolFile(&prog);
-
 
     deleteProgram(&prog);
     deleteParser(&parser);
