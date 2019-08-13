@@ -1,4 +1,4 @@
-#include "symbol.h"
+#include "sym.h"
 
 #define INITIAL_CAPACITY 256
 #define LOAD_FACTOR 0.7

@@ -7,6 +7,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+typedef struct Options {
+    /* TODO */
+} Options;
+
 #define ALLOC(p, n)                                                            \
     {                                                                          \
         *p = calloc((n), sizeof(**p));                                         \

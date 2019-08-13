@@ -3,8 +3,8 @@
 
 #include "common.h"
 
-/* opcodes */
 enum {
+    /* Operations  */
     BR = 0x0,
     ADD,
     LD,
@@ -20,7 +20,22 @@ enum {
     JMP,
     RES, /* reserved */
     LEA,
-    TRAP
+    TRAP,
+
+    /* Trap Routines */
+    GETC = 0xf020,
+    OUT = 0xf021,
+    PUTS = 0xf022,
+    IN = 0xf023,
+    PUTSP = 0xf024,
+    HALT = 0xf025,
+    
+    /* Directives */
+    ORIG = 0xffff,
+    FILL = 0xfffe,
+    BLKW = 0xfffd,
+    STRINGZ = 0xfffc,
+    END = 0xfffb
 };
 
 typedef struct s_operation {

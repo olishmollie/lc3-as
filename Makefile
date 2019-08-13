@@ -1,10 +1,7 @@
-all: vm assembler parse
+all: core assembler
 
-assembler: assembler.c operation.c symbol.c
-	clang assembler.c operation.c symbol.c -o assembler
+assembler: src/lca.c src/asm.c src/op.c src/parse.c src/sym.c
+	clang src/lca.c src/asm.c src/op.c src/parse.c src/sym.c -o lca
 
-vm: vm.c
-	clang vm.c -o vm
-
-parse: parse.c operation.c symbol.c 
-	clang parse.c operation.c symbol.c -o parse
+core: src/core.c
+	clang src/core.c -o lc3

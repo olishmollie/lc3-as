@@ -1,54 +1,39 @@
-#include "common.h"
-#include "operation.h"
-#include "symbol.h"
+#include "parse.h"
 
-#define MAX_NUM_INSTR 0xcfff
-#define MAX_SYM_LEN 11
 #define MAX_STR_LEN 48
-
-typedef struct Instr {
-    uint16_t lc;
-    Operation *op;
-
-    Symbol *label;
-    Symbol *pcoffset9;
-
-    uint16_t dr;
-    uint16_t sr1;
-    uint16_t sr2;
-    uint16_t imm5;
-    uint16_t val;
-    uint16_t str[MAX_STR_LEN];
-
-} Instr;
-
-typedef struct Program {
-    uint16_t lc;
-    uint16_t size;
-    Instr instructions[MAX_NUM_INSTR];
-
-    Table symbolTable;
-} Program;
 
 void initProgram(Program *prog) {
     initTable(&prog->symbolTable);
+    prog->orig = 0;
     prog->lc = 0;
-    prog->size = 0;
 }
 
 void deleteProgram(Program *prog) {
     deleteTable(&prog->symbolTable);
+    free(prog);
 }
 
 Instr *nextInstr(Program *prog) {
-    if (prog->size == MAX_NUM_INSTR) {
+    if (prog->lc == MAX_NUM_INSTR) {
         fprintf(stderr, "fatal: maximum instruction count reached\n");
         exit(1);
     }
-    Instr *instr = &prog->instructions[prog->size++];
+    Instr *instr = &prog->instructions[prog->lc];
     instr->lc = prog->lc++;
+
     instr->label = NULL;
+    instr->op = NULL;
     instr->pcoffset9 = NULL;
+    instr->pcoffset11 = NULL;
+
+    instr->dr = 0xffff;
+    instr->sr1 = 0xffff;
+    instr->sr2 = 0xffff;
+    instr->imm5 = 0xffff;
+    instr->offset6 = 0xffff;
+    instr->baser = 0xffff;
+    instr->trapvect8 = 0xffff;
+
     return instr;
 }
 
@@ -58,20 +43,20 @@ Instr *curInstr(Program *prog) {
 
 typedef struct Parser {
     uint16_t line;
-    FILE *stream;
+    FILE *istream;
     char cur;
     char peek;
 } Parser;
 
-void initParser(Parser *parser, FILE *stream) {
+void initParser(Parser *parser, FILE *istream) {
     parser->line = 1;
-    parser->stream = stream;
-    parser->cur = getc(stream);
-    parser->peek = getc(stream);
+    parser->istream = istream;
+    parser->cur = getc(istream);
+    parser->peek = getc(istream);
 }
 
 void deleteParser(Parser *parser) {
-    fclose(parser->stream);
+    fclose(parser->istream);
 }
 
 uint16_t eof(Parser *parser) {
@@ -83,7 +68,7 @@ char advance(Parser *parser) {
     if (parser->cur == '\n') {
         parser->line++;
     }
-    parser->peek = getc(parser->stream);
+    parser->peek = getc(parser->istream);
     return parser->cur;
 }
 
@@ -174,6 +159,11 @@ uint16_t parseOp(Parser *parser) {
     }
     *bp = '\0';
 
+    if (bp - buf == 0) {
+        fprintf(stderr, "expected operation; line %d\n", parser->line);
+        exit(1);
+    }
+
     uint16_t opidx = findOperation(buf);
     if (opidx == 0xffff) {
         fprintf(stderr, "unknown operation '%s'; line %d\n", buf, parser->line);
@@ -205,16 +195,23 @@ uint16_t parseRegister(Parser *parser) {
 
 uint16_t parseLiteral(Parser *parser) {
     skipSpaces(parser);
-    uint16_t val;
+    uint16_t val, neg = 0;
 
     val = 0;
     switch (parser->cur) {
     case '#':
         advance(parser);
-        while (!eof(parser) && isdigit(parser->cur)) {
-            val += parser->cur - '0';
-            val *= 10;
+        if (parser->cur == '-') {
+            neg = 1;
             advance(parser);
+        }
+        while (!eof(parser) && isdigit(parser->cur)) {
+            val *= 10;
+            val += parser->cur - '0';
+            advance(parser);
+        }
+        if (neg) {
+            val *= -1;
         }
         break;
     case 'x':
@@ -232,14 +229,15 @@ uint16_t parseLiteral(Parser *parser) {
     }
 
     if (!isdelim(parser->cur)) {
-        fprintf(stderr, "invalid literal syntax; line %d\n", parser->line);
+        fprintf(stderr, "invalid literal syntax '%c'; line %d\n", parser->cur,
+                parser->line);
         exit(1);
     }
 
     return val;
 }
 
-uint16_t parseString(Parser *parser, uint16_t *str) {
+uint16_t parseString(Parser *parser, Program *prog, Instr *instr) {
     skipSpaces(parser);
     if (parser->cur != '"') {
         fprintf(stderr, "expected string literal argument; line %d\n",
@@ -248,12 +246,17 @@ uint16_t parseString(Parser *parser, uint16_t *str) {
     }
     advance(parser);
 
-    uint16_t len = 0;
+    uint16_t len;
+    Operation *stringz = instr->op;
+
+    len = 0;
     while (!eof(parser) && parser->cur != '"' && len < MAX_STR_LEN) {
-        str[len++] = (uint16_t)parser->cur;
+        instr->val = (uint16_t)parser->cur;
         advance(parser);
+        instr = nextInstr(prog);
+	instr->op = stringz;
     }
-    str[len] = 0;
+    instr->val = 0;
 
     if (parser->cur != '"') {
         fprintf(stderr, "unterminated string literal; line %d\n", parser->line);
@@ -262,7 +265,7 @@ uint16_t parseString(Parser *parser, uint16_t *str) {
 
     advance(parser);
 
-    return len + 1;
+    return len;
 }
 
 Symbol *parseSymbol(Parser *parser, Program *prog) {
@@ -290,34 +293,16 @@ Symbol *parseSymbol(Parser *parser, Program *prog) {
     return newSymbol(&prog->symbolTable, buf, -1);
 }
 
-void parseDirective(Parser *parser, Program *prog, Instr *instr) {
-    switch (instr->op->opcode) {
-    case 0xfffe: /* .FILL */
-        instr->val = parseLiteral(parser);
-        break;
-    case 0xfffd: /* .BLKW */
-        prog->lc += parseLiteral(parser);
-        break;
-    case 0xfffc: /* .STRINGZ */
-        prog->lc += parseString(parser, instr->str);
-        break;
-    case 0xfffb: /* .END */
-        break;
-    case 0xffff: /* .ORIG */
-        fprintf(stderr, "unexpected .ORIG directive; line %d\n", parser->line);
-        exit(1);
-    }
-}
-
 void parseOperands(Parser *parser, Program *prog, Instr *instr) {
     skipSpaces(parser);
 
     switch (instr->op->opcode) {
     case ADD:
-    case AND:
+    case AND: /* ambiguity here */
         instr->dr = parseRegister(parser);
         expect(parser, ',');
         instr->sr1 = parseRegister(parser);
+        expect(parser, ',');
         skipSpaces(parser);
         if (toupper(parser->cur) == 'R') {
             instr->sr2 = parseRegister(parser);
@@ -325,11 +310,88 @@ void parseOperands(Parser *parser, Program *prog, Instr *instr) {
             instr->imm5 = parseLiteral(parser);
         }
         break;
+    case BR:
+        instr->pcoffset9 = parseSymbol(parser, prog);
+        break;
+    case JMP:
+        instr->baser = parseRegister(parser);
+        break;
+    case JSR: /* and here */
+        skipSpaces(parser);
+        if (parser->cur == 'R') {
+            instr->baser = parseRegister(parser);
+        } else {
+            instr->pcoffset11 = parseSymbol(parser, prog);
+        }
+        break;
+    case LD:
+    case LDI:
     case LEA:
         instr->dr = parseRegister(parser);
         expect(parser, ',');
         instr->pcoffset9 = parseSymbol(parser, prog);
         break;
+    case LDR:
+        instr->dr = parseRegister(parser);
+        expect(parser, ',');
+        instr->baser = parseRegister(parser);
+        expect(parser, ',');
+        instr->offset6 = parseLiteral(parser);
+        break;
+    case NOT:
+        instr->dr = parseRegister(parser);
+        expect(parser, ',');
+        instr->sr1 = parseRegister(parser);
+        break;
+    case RTI:
+        break;
+    case ST:
+    case STI:
+        instr->sr1 = parseRegister(parser);
+        expect(parser, ',');
+        instr->pcoffset9 = parseSymbol(parser, prog);
+        break;
+    case STR:
+        instr->sr1 = parseRegister(parser);
+        expect(parser, ',');
+        instr->baser = parseRegister(parser);
+        expect(parser, ',');
+        instr->offset6 = parseLiteral(parser);
+        break;
+    case TRAP:
+        instr->trapvect8 = parseLiteral(parser);
+        break;
+    case GETC:
+    case OUT:
+    case PUTS:
+    case IN:
+    case HALT:
+        break;
+    case FILL:
+        instr->val = parseLiteral(parser);
+        break;
+    case BLKW: {
+        uint16_t val = parseLiteral(parser) - 1;
+	printf("val = \\x%x\n", val);
+	Operation *blkw = instr->op;
+	while (val--) {
+	    instr->val = 0;
+	    instr = nextInstr(prog);
+	    instr->op = blkw;
+	}
+        break;
+    }
+    case STRINGZ:
+        parseString(parser, prog, instr);
+        break;
+    case END:
+        break;
+    case ORIG:
+        fprintf(stderr, "unexpected .ORIG directive; line %d\n", parser->line);
+        exit(1);
+    default:
+        fprintf(stderr, "illegal opcode exception \\x%x; line %d\n",
+                instr->op->opcode, parser->line);
     }
 }
 
@@ -344,7 +406,7 @@ void parseOrigin(Parser *parser, Program *prog) {
                 parser->line);
         exit(1);
     }
-    prog->lc = parseLiteral(parser);
+    prog->orig = parseLiteral(parser);
     skipComments(parser);
 }
 
@@ -356,16 +418,12 @@ void parseInstr(Parser *parser, Program *prog) {
         instr->op = &operations[opidx];
     }
 
-    if (isdirective(instr->op)) {
-        parseDirective(parser, prog, instr);
-    } else if (isoperation(instr->op)) {
-        parseOperands(parser, prog, instr);
-    }
+    parseOperands(parser, prog, instr);
 
     skipComments(parser);
 }
 
-void parse(Parser *parser, Program *prog) {
+void parseProgram(Parser *parser, Program *prog) {
     skipComments(parser);
     parseOrigin(parser, prog);
 
@@ -389,8 +447,9 @@ int fwriteSymbol(Symbol *symbol, FILE *sf) {
     return 0;
 }
 
-void makeSymbolFile(Program *prog) {
-    FILE *sf = fopen("symbol-table.txt", "w");
+void makeSymbolFile(char *fname, Program *prog) {
+    /* TODO - munge strings to make proper symbol file name */
+    FILE *sf = fopen("table.txt", "w");
     if (!sf) {
         fprintf(stderr, "unable to open symbol file\n");
         return;
@@ -410,45 +469,37 @@ void makeSymbolFile(Program *prog) {
 }
 
 void printProgram(Program *prog) {
-    for (int i = 0; i < prog->size; i++) {
+    for (int i = 0; i < prog->lc; i++) {
         Instr instr = prog->instructions[i];
         printf("{\n");
         printf("\tlabel: %s\n", instr.label ? instr.label->name : "");
         printf("\tlc: \\x%x\n", instr.lc);
-        printf("\tname: %s\n", instr.op->name);
-        printf("\topcode: \\x%x\n", instr.op->opcode);
+        printf("\tname: %s\n", instr.op ? instr.op->name : "");
+        printf("\topcode: \\x%x\n", instr.op ? instr.op->opcode : 0xffff);
         printf("\tdr: \\x%x\n", instr.dr);
         printf("\tsr1: \\x%x\n", instr.sr1);
         printf("\tsr2: \\x%x\n", instr.sr2);
         printf("\timm5: \\x%x\n", instr.imm5);
+        printf("\tval: \\x%x\n", instr.val);
         printf("\tpcoffset9: %s\n",
                instr.pcoffset9 ? instr.pcoffset9->name : "");
         printf("}\n");
     }
 }
 
-int main(void) {
+Program *parse(FILE *istream) {
     Parser parser;
-    Program prog;
-    FILE *stream;
+    Program *prog;
 
-    char *fn = "hello.asm";
+    ALLOC(&prog, 1);
 
-    stream = fopen(fn, "r");
-    if (!stream) {
-        fprintf(stderr, "unable to open assembly file '%s'\n", fn);
-        exit(1);
-    }
+    initParser(&parser, istream);
+    initProgram(prog);
 
-    initParser(&parser, stream);
-    initProgram(&prog);
+    parseProgram(&parser, prog);
+    printProgram(prog);
 
-    parse(&parser, &prog);
-    printProgram(&prog);
-    makeSymbolFile(&prog);
-
-    deleteProgram(&prog);
     deleteParser(&parser);
 
-    return 0;
+    return prog;
 }

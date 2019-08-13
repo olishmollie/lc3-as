@@ -1,4 +1,4 @@
-#include "operation.h"
+#include "op.h"
 #include "common.h"
 
 #define NUM_OPS (uint16_t)sizeof(operations) / (uint16_t)sizeof(operations[0])
@@ -31,18 +31,18 @@ Operation operations[] = {
     {"TRAP", TRAP, 1, 0},
 
     /* Trap Routines */
-    {"GETC", 0xf020, 0, 0},
-    {"OUT", 0xf021, 0, 0},
-    {"PUTS", 0xf022, 0, 0},
-    {"IN", 0xf023, 0, 0},
-    {"PUTSP", 0xf024, 0, 0},
-    {"HALT", 0xf025, 0, 0},
+    {"GETC", GETC, 0, 0},
+    {"OUT", OUT, 0, 0},
+    {"PUTS", PUTS, 0, 0},
+    {"IN", IN, 0, 0},
+    {"PUTSP", PUTSP, 0, 0},
+    {"HALT", HALT, 0, 0},
 
     /* Directives */
-    {".ORIG", 0xffff, 1, 0},
-    {".FILL", 0xfffe, 1, 0},
-    {".BLKW", 0xfffd, 1, 0},
-    {".STRINGZ", 0xfffc, 1, 0},
+    {".ORIG", ORIG, 1, 0},
+    {".FILL", FILL, 1, 0},
+    {".BLKW", BLKW, 1, 0},
+    {".STRINGZ", STRINGZ, 1, 0},
     {".END", 0xfffb, 0, 0}
 };
 
