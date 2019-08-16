@@ -38,11 +38,12 @@ enum {
     END = 0xfffb
 };
 
-typedef struct s_operation {
+typedef struct Operation {
     char *name;
     uint16_t opcode;
     uint16_t nargs;
     uint16_t nzp; /* used by BR */
+    uint16_t ret; /* used by JMP */
 } Operation;
 
 extern Operation operations[];

@@ -45,14 +45,12 @@ typedef struct Parser {
     uint16_t line;
     FILE *istream;
     char cur;
-    char peek;
 } Parser;
 
 void initParser(Parser *parser, FILE *istream) {
     parser->line = 1;
     parser->istream = istream;
-    parser->cur = getc(istream);
-    parser->peek = getc(istream);
+    parser->cur = toupper(getc(istream));
 }
 
 void deleteParser(Parser *parser) {
@@ -60,15 +58,14 @@ void deleteParser(Parser *parser) {
 }
 
 uint16_t eof(Parser *parser) {
-    return parser->peek == EOF;
+    return parser->cur == EOF;
 }
 
-char advance(Parser *parser) {
-    parser->cur = parser->peek;
+char advance(Parser *parser, int ci) {
+    parser->cur = ci ? toupper(getc(parser->istream)) : getc(parser->istream);
     if (parser->cur == '\n') {
         parser->line++;
     }
-    parser->peek = getc(parser->istream);
     return parser->cur;
 }
 
@@ -76,10 +73,10 @@ void skipComments(Parser *parser) {
     while (!eof(parser)) {
         if (parser->cur == ';') {
             while (parser->cur != '\n') {
-                advance(parser);
+                advance(parser, 1);
             }
         } else if (isspace(parser->cur)) {
-            advance(parser);
+            advance(parser, 1);
         } else {
             break;
         }
@@ -88,7 +85,7 @@ void skipComments(Parser *parser) {
 
 void skipSpaces(Parser *parser) {
     while (parser->cur == ' ' || parser->cur == '\t') {
-        advance(parser);
+        advance(parser, 1);
     }
 }
 
@@ -99,7 +96,7 @@ void expect(Parser *parser, char c) {
                 parser->line);
         exit(1);
     }
-    advance(parser);
+    advance(parser, 1);
 }
 
 uint16_t isdelim(char c) {
@@ -107,7 +104,7 @@ uint16_t isdelim(char c) {
 }
 
 uint16_t ishex(char c) {
-    return (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F') || isdigit(c);
+    return (c >= 'A' && c <= 'F') || isdigit(c);
 }
 
 uint16_t isdirective(Operation *op) {
@@ -127,7 +124,7 @@ Symbol *parseLabel(Parser *parser, Program *prog, Instr *instr) {
     bp = buf;
     while (!isdelim(parser->cur) && bp - buf < MAX_SYM_LEN - 1) {
         *bp++ = parser->cur;
-        advance(parser);
+        advance(parser, 1);
     }
     *bp = '\0';
 
@@ -155,7 +152,7 @@ uint16_t parseOp(Parser *parser) {
     bp = buf;
     while (!isdelim(parser->cur)) {
         *bp++ = parser->cur;
-        advance(parser);
+        advance(parser, 1);
     }
     *bp = '\0';
 
@@ -175,20 +172,22 @@ uint16_t parseOp(Parser *parser) {
 
 uint16_t parseRegister(Parser *parser) {
     skipSpaces(parser);
-    uint16_t reg;
+    char buf[MAX_STR_LEN], *bp;
+    uint16_t nargs, reg;
 
-    if (parser->cur != 'R' && parser->cur != 'r') {
-        fprintf(stderr, "expected register argument; line %d\n", parser->line);
+    bp = buf;
+    while (!eof(parser) && !isdelim(parser->cur)) {
+        *bp++ = parser->cur;
+        advance(parser, 1);
     }
+    *bp = '\0';
 
-    advance(parser);
-    if (!isdigit(parser->cur)) {
-        fprintf(stderr, "invalid register literal; line %d\n", parser->line);
+    nargs = sscanf(buf, "R%hu", &reg);
+    if (nargs != 1) {
+        fprintf(stderr, "invalid register specification: '%s'; line %d\n", buf,
+                parser->line);
         exit(1);
     }
-
-    reg = parser->cur - '0';
-    advance(parser);
 
     return reg;
 }
@@ -200,26 +199,26 @@ uint16_t parseLiteral(Parser *parser) {
     val = 0;
     switch (parser->cur) {
     case '#':
-        advance(parser);
+        advance(parser, 1);
         if (parser->cur == '-') {
             neg = 1;
-            advance(parser);
+            advance(parser, 1);
         }
         while (!eof(parser) && isdigit(parser->cur)) {
             val *= 10;
             val += parser->cur - '0';
-            advance(parser);
+            advance(parser, 1);
         }
         if (neg) {
             val *= -1;
         }
         break;
-    case 'x':
-        advance(parser);
+    case 'X':
+        advance(parser, 1);
         while (!eof(parser) && ishex(parser->cur)) {
             val <<= 4;
             val += parser->cur - '0';
-            advance(parser);
+            advance(parser, 1);
         }
         break;
     default:
@@ -244,7 +243,7 @@ uint16_t parseString(Parser *parser, Program *prog, Instr *instr) {
                 parser->line);
         exit(1);
     }
-    advance(parser);
+    advance(parser, 0);
 
     uint16_t len;
     Operation *stringz = instr->op;
@@ -252,9 +251,9 @@ uint16_t parseString(Parser *parser, Program *prog, Instr *instr) {
     len = 0;
     while (!eof(parser) && parser->cur != '"' && len < MAX_STR_LEN) {
         instr->val = (uint16_t)parser->cur;
-        advance(parser);
+        advance(parser, 0);
         instr = nextInstr(prog);
-	instr->op = stringz;
+        instr->op = stringz;
     }
     instr->val = 0;
 
@@ -263,7 +262,7 @@ uint16_t parseString(Parser *parser, Program *prog, Instr *instr) {
         exit(1);
     }
 
-    advance(parser);
+    advance(parser, 1);
 
     return len;
 }
@@ -275,7 +274,7 @@ Symbol *parseSymbol(Parser *parser, Program *prog) {
     bp = buf;
     while (!isdelim(parser->cur) && bp - buf < MAX_SYM_LEN) {
         *bp++ = parser->cur;
-        advance(parser);
+        advance(parser, 1);
     }
     *bp = '\0';
 
@@ -298,13 +297,13 @@ void parseOperands(Parser *parser, Program *prog, Instr *instr) {
 
     switch (instr->op->opcode) {
     case ADD:
-    case AND: /* ambiguity here */
+    case AND:
         instr->dr = parseRegister(parser);
         expect(parser, ',');
         instr->sr1 = parseRegister(parser);
         expect(parser, ',');
         skipSpaces(parser);
-        if (toupper(parser->cur) == 'R') {
+        if (parser->cur == 'R') {
             instr->sr2 = parseRegister(parser);
         } else {
             instr->imm5 = parseLiteral(parser);
@@ -314,9 +313,13 @@ void parseOperands(Parser *parser, Program *prog, Instr *instr) {
         instr->pcoffset9 = parseSymbol(parser, prog);
         break;
     case JMP:
-        instr->baser = parseRegister(parser);
+	if (instr->op->ret) {
+	    instr->baser = 0x7;
+	} else {
+	    instr->baser = parseRegister(parser);
+	}
         break;
-    case JSR: /* and here */
+    case JSR:
         skipSpaces(parser);
         if (parser->cur == 'R') {
             instr->baser = parseRegister(parser);
@@ -372,13 +375,12 @@ void parseOperands(Parser *parser, Program *prog, Instr *instr) {
         break;
     case BLKW: {
         uint16_t val = parseLiteral(parser) - 1;
-	printf("val = \\x%x\n", val);
-	Operation *blkw = instr->op;
-	while (val--) {
-	    instr->val = 0;
-	    instr = nextInstr(prog);
-	    instr->op = blkw;
-	}
+        Operation *blkw = instr->op;
+        while (val--) {
+            instr->val = 0;
+            instr = nextInstr(prog);
+            instr->op = blkw;
+        }
         break;
     }
     case STRINGZ:
@@ -476,6 +478,7 @@ void printProgram(Program *prog) {
         printf("\tlc: \\x%x\n", instr.lc);
         printf("\tname: %s\n", instr.op ? instr.op->name : "");
         printf("\topcode: \\x%x\n", instr.op ? instr.op->opcode : 0xffff);
+	printf("\tnzp: \\x%x\n", instr.op ? instr.op->nzp : 0xffff);
         printf("\tdr: \\x%x\n", instr.dr);
         printf("\tsr1: \\x%x\n", instr.sr1);
         printf("\tsr2: \\x%x\n", instr.sr2);
