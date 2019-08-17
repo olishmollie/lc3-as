@@ -107,6 +107,33 @@ uint16_t ishex(char c) {
     return (c >= 'A' && c <= 'F') || isdigit(c);
 }
 
+uint16_t hexval(char c) {
+    uint16_t val;
+    if (isdigit(c)) {
+	return c - '0';
+    }
+    switch (c) {
+    case 'A':
+	val = 10;
+	break;
+    case 'B':
+	val = 11;
+	break;
+    case 'C':
+	val = 12;
+	break;
+    case 'D':
+	val = 13;
+	break;
+    case 'E':
+	val = 14;
+	break;
+    case 'F':
+	val = 15;
+    }
+    return val;
+}
+
 uint16_t isdirective(Operation *op) {
     return op->opcode >= 0xfffb && op->opcode <= 0xffff;
 }
@@ -217,7 +244,7 @@ uint16_t parseLiteral(Parser *parser) {
         advance(parser, 1);
         while (!eof(parser) && ishex(parser->cur)) {
             val <<= 4;
-            val += parser->cur - '0';
+            val += hexval(parser->cur);
             advance(parser, 1);
         }
         break;
@@ -321,7 +348,7 @@ void parseOperands(Parser *parser, Program *prog, Instr *instr) {
         break;
     case JSR:
         skipSpaces(parser);
-        if (parser->cur == 'R') {
+        if (instr->op->reg) {
             instr->baser = parseRegister(parser);
         } else {
             instr->pcoffset11 = parseSymbol(parser, prog);
@@ -470,6 +497,10 @@ void makeSymbolFile(char *fname, Program *prog) {
     fclose(sf);
 }
 
+/* 
+ * PrintProgram prints a JSON like representation of instructions 
+ * to stdout; it is useful for debugging.
+*/
 void printProgram(Program *prog) {
     for (int i = 0; i < prog->lc; i++) {
         Instr instr = prog->instructions[i];
@@ -500,7 +531,6 @@ Program *parse(FILE *istream) {
     initProgram(prog);
 
     parseProgram(&parser, prog);
-    printProgram(prog);
 
     deleteParser(&parser);
 

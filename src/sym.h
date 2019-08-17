@@ -9,7 +9,7 @@ typedef struct Symbol {
     char *name;
     int value;
 
-    uint32_t hash;
+    uint16_t hash;
     struct Symbol *next;
 } Symbol;
 

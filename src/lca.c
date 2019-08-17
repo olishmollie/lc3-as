@@ -29,5 +29,7 @@ int main(int argc, char **argv) {
 
     assemble(prog, ostream);
 
+    fclose(ostream);
+
     return 0;
 }

@@ -8,6 +8,7 @@ void assemble(Program *prog, FILE *ostream) {
 
     /* write origin to file */
     fwrite(&prog->orig, sizeof(prog->orig), 1, ostream);
+    uint16_t instructions[prog->lc - 1];
 
     for (i = 0; i < prog->lc; i++) {
         instr = prog->instructions[i];
@@ -21,8 +22,8 @@ void assemble(Program *prog, FILE *ostream) {
             } else {
                 code |= instr.sr2;
             }
+	    instructions[i] = code;
             fwrite(&code, sizeof(code), 1, ostream);
-            printf("ADD code = \\x%x\n", code);
             break;
         case AND:
             code |= (instr.dr << 9) | (instr.sr1 << 6);
@@ -31,8 +32,8 @@ void assemble(Program *prog, FILE *ostream) {
             } else {
                 code |= instr.sr2;
             }
-            printf("AND code = \\x%x\n", code);
             fwrite(&code, sizeof(code), 1, ostream);
+	    instructions[i] = code;
             break;
         case BR:
             code |= (instr.op->nzp << 9);
@@ -42,12 +43,12 @@ void assemble(Program *prog, FILE *ostream) {
                 exit(1);
             }
             code |= (sym->value - instr.lc - 1) & 0x1ff;
-            printf("BR code = \\x%x\n", code);
+	    instructions[i] = code;
             fwrite(&code, sizeof(code), 1, ostream);
             break;
         case JMP:
             code |= instr.baser << 6;
-            printf("JMP code = \\x%x\n", code);
+	    instructions[i] = code;
             fwrite(&code, sizeof(code), 1, ostream);
             break;
         case JSR:
@@ -62,7 +63,7 @@ void assemble(Program *prog, FILE *ostream) {
             } else {
                 code |= instr.baser << 6;
             }
-            printf("JSR code = \\x%x\n", code);
+	    instructions[i] = code;
             fwrite(&code, sizeof(code), 1, ostream);
             break;
         case LD:
@@ -73,7 +74,7 @@ void assemble(Program *prog, FILE *ostream) {
                 exit(1);
             }
             code |= (sym->value - instr.lc - 1) & 0x1ff;
-            printf("LD code = \\x%x\n", code);
+	    instructions[i] = code;
             fwrite(&code, sizeof(code), 1, ostream);
             break;
         case LDI:
@@ -84,7 +85,7 @@ void assemble(Program *prog, FILE *ostream) {
                 exit(1);
             }
             code |= (sym->value - instr.lc - 1) & 0x1ff;
-            printf("LDI code = \\x%x\n", code);
+	    instructions[i] = code;
             fwrite(&code, sizeof(code), 1, ostream);
             break;
         case LEA:
@@ -95,22 +96,22 @@ void assemble(Program *prog, FILE *ostream) {
                 exit(1);
             }
             code |= (sym->value - instr.lc - 1) & 0x1ff;
-            printf("LEA code = \\x%x\n", code);
+	    instructions[i] = code;
             fwrite(&code, sizeof(code), 1, ostream);
             break;
         case LDR:
             code |= (instr.dr << 9) | (instr.baser << 6) | instr.offset6;
-            printf("LDR code = \\x%x\n", code);
+	    instructions[i] = code;
             fwrite(&code, sizeof(code), 1, ostream);
             break;
         case NOT:
             code |= (instr.dr << 9) | (instr.sr1 << 6) | 0x3f;
-            printf("NOT code = \\x%x\n", code);
+	    instructions[i] = code;
             fwrite(&code, sizeof(code), 1, ostream);
             break;
         case RTI:
             code = instr.op->opcode;
-            printf("RTI code = \\x%x\n", code);
+	    instructions[i] = code;
             fwrite(&code, sizeof(code), 1, ostream);
             break;
         case ST:
@@ -121,7 +122,7 @@ void assemble(Program *prog, FILE *ostream) {
                 exit(1);
             }
             code |= (sym->value - instr.lc - 1) & 0x1ff;
-            printf("ST code = \\x%x\n", code);
+	    instructions[i] = code;
             fwrite(&code, sizeof(code), 1, ostream);
             break;
         case STI:
@@ -132,48 +133,48 @@ void assemble(Program *prog, FILE *ostream) {
                 exit(1);
             }
             code |= (sym->value - instr.lc - 1) & 0x1ff;
-            printf("STI code = \\x%x\n", code);
+	    instructions[i] = code;
             fwrite(&code, sizeof(code), 1, ostream);
             break;
         case STR:
             code |= (instr.sr1 << 9) | (instr.baser << 6) | instr.offset6;
-	    printf("STR code = \\x%x\n", code);
+	    instructions[i] = code;
             fwrite(&code, sizeof(code), 1, ostream);
             break;
         case TRAP:
             code |= instr.trapvect8;
-	    printf("TRAP code = \\x%x\n", code);
+	    instructions[i] = code;
             fwrite(&code, sizeof(code), 1, ostream);
             break;
         case GETC:
-	    printf("GETC code = \\x%x\n", instr.op->opcode);
             fwrite(&instr.op->opcode, sizeof(instr.op->opcode), 1, ostream);
+	    instructions[i] = instr.op->opcode;
 	    break;
         case OUT:
-	    printf("OUT code = \\x%x\n", instr.op->opcode);
             fwrite(&instr.op->opcode, sizeof(instr.op->opcode), 1, ostream);
+	    instructions[i] = instr.op->opcode;
 	    break;
         case PUTS:
-	    printf("PUTS code = \\x%x\n", instr.op->opcode);
             fwrite(&instr.op->opcode, sizeof(instr.op->opcode), 1, ostream);
+	    instructions[i] = instr.op->opcode;
 	    break;
         case IN:
-	    printf("IN code = \\x%x\n", instr.op->opcode);
             fwrite(&instr.op->opcode, sizeof(instr.op->opcode), 1, ostream);
+	    instructions[i] = instr.op->opcode;
 	    break;
         case PUTSP:
-	    printf("PUTSP code = \\x%x\n", instr.op->opcode);
             fwrite(&instr.op->opcode, sizeof(instr.op->opcode), 1, ostream);
+	    instructions[i] = instr.op->opcode;
 	    break;
         case HALT:
-	    printf("HALT code = \\x%x\n", instr.op->opcode);
             fwrite(&instr.op->opcode, sizeof(instr.op->opcode), 1, ostream);
+	    instructions[i] = instr.op->opcode;
             break;
         case FILL:
         case BLKW:
         case STRINGZ:
             fwrite(&instr.val, sizeof(instr.val), 1, ostream);
-            break;
+	    instructions[i] = instr.val;
             break;
         case END:
             break;

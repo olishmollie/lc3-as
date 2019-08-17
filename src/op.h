@@ -44,6 +44,7 @@ typedef struct Operation {
     uint16_t nargs;
     uint16_t nzp; /* used by BR */
     uint16_t ret; /* used by JMP */
+    uint16_t reg; /* used by JSR */
 } Operation;
 
 extern Operation operations[];

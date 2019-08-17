@@ -9,8 +9,8 @@ void initTable(Table *table) {
     ALLOC(&table->buckets, INITIAL_CAPACITY);
 }
 
-uint32_t hash(char *str) {
-    uint32_t hash = 53;
+uint16_t hash(char *str) {
+    uint16_t hash = 53;
     char c;
 
     while ((c = *str++))
@@ -51,7 +51,7 @@ void putSymbol(Table *table, Symbol *symbol) {
     Symbol **entry = &table->buckets[symbol->hash % table->capacity];
 
     while (*entry) {
-        *entry = (*entry)->next;
+        entry = &(*entry)->next;
     }
     *entry = symbol;
 
@@ -62,7 +62,7 @@ Symbol *getSymbol(Table *table, char *name) {
     if (table->size == 0) {
         return NULL;
     }
-    uint32_t h = hash(name);
+    uint16_t h = hash(name);
     Symbol *entry = table->buckets[h % table->capacity];
 
     while (entry) {
