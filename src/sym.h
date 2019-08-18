@@ -26,7 +26,4 @@ void initTable(Table *table);
 Symbol *getSymbol(Table *table, char *name);
 void deleteTable(Table *table);
 
-/* Global Symbol Table */
-Table symbolTable;
-
 #endif

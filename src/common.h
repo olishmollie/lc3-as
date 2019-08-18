@@ -8,7 +8,7 @@
 #include <string.h>
 
 typedef struct Options {
-    /* TODO */
+    char *outfile;
 } Options;
 
 #define ALLOC(p, n)                                                            \

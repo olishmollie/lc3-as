@@ -3,17 +3,40 @@
 #include "parse.h"
 #include "sym.h"
 
-#define DEFAULT_OUTFILE "a.out"
+#include <unistd.h>
+
+#define DEFAULT_OUTFILE "o.lc3"
 
 int main(int argc, char **argv) {
-    initTable(&symbolTable);
+    Options opts;
+    int c;
 
-    if (argc != 2) {
-        printf("usage: blah blah blah\n");
-        exit(1);
+    /* opterr = 0; */
+    opts.outfile = NULL;
+
+    while ((c = getopt(argc, argv, "o:")) != -1) {
+	switch (c) {
+	case 'o':
+	    opts.outfile = optarg;
+	    break;
+	case '?':
+	    if (optopt == 'o') {
+		fprintf(stderr, "option -o requires an argument\n");
+	    } else if (isprint(optopt)){
+		fprintf(stderr, "unknown option %c", optopt);
+	    } else {
+		fprintf(stderr, "unknown option \\x%x\n", optopt);
+	    }
+	    return 1;
+	}
     }
 
-    FILE *istream = fopen(argv[1], "r");
+    if (optind >= argc) {
+	fprintf(stderr, "no input file\n");
+	return 1;
+    }
+
+    FILE *istream = fopen(argv[optind], "r");
     if (!istream) {
 	fprintf(stderr, "unable to open '%s'\n", argv[1]);
 	exit(1);
@@ -21,7 +44,7 @@ int main(int argc, char **argv) {
 
     Program *prog = parse(istream);
 
-    FILE *ostream = fopen(DEFAULT_OUTFILE, "wb");
+    FILE *ostream = fopen(opts.outfile ? opts.outfile : DEFAULT_OUTFILE, "wb");
     if (!ostream) {
 	fprintf(stderr, "unable to open '%s'\n", DEFAULT_OUTFILE);
 	exit(1);
