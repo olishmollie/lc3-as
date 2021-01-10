@@ -22,7 +22,7 @@ void assemble(Program *prog, FILE *ostream) {
             } else {
                 code |= instr.sr2;
             }
-	    instructions[i] = code;
+            instructions[i] = code;
             fwrite(&code, sizeof(code), 1, ostream);
             break;
         case AND:
@@ -33,7 +33,7 @@ void assemble(Program *prog, FILE *ostream) {
                 code |= instr.sr2;
             }
             fwrite(&code, sizeof(code), 1, ostream);
-	    instructions[i] = code;
+            instructions[i] = code;
             break;
         case BR:
             code |= (instr.op->nzp << 9);
@@ -43,12 +43,12 @@ void assemble(Program *prog, FILE *ostream) {
                 exit(1);
             }
             code |= (sym->value - instr.lc - 1) & 0x1ff;
-	    instructions[i] = code;
+            instructions[i] = code;
             fwrite(&code, sizeof(code), 1, ostream);
             break;
         case JMP:
             code |= instr.baser << 6;
-	    instructions[i] = code;
+            instructions[i] = code;
             fwrite(&code, sizeof(code), 1, ostream);
             break;
         case JSR:
@@ -63,7 +63,7 @@ void assemble(Program *prog, FILE *ostream) {
             } else {
                 code |= instr.baser << 6;
             }
-	    instructions[i] = code;
+            instructions[i] = code;
             fwrite(&code, sizeof(code), 1, ostream);
             break;
         case LD:
@@ -74,7 +74,7 @@ void assemble(Program *prog, FILE *ostream) {
                 exit(1);
             }
             code |= (sym->value - instr.lc - 1) & 0x1ff;
-	    instructions[i] = code;
+            instructions[i] = code;
             fwrite(&code, sizeof(code), 1, ostream);
             break;
         case LDI:
@@ -85,7 +85,7 @@ void assemble(Program *prog, FILE *ostream) {
                 exit(1);
             }
             code |= (sym->value - instr.lc - 1) & 0x1ff;
-	    instructions[i] = code;
+            instructions[i] = code;
             fwrite(&code, sizeof(code), 1, ostream);
             break;
         case LEA:
@@ -96,22 +96,22 @@ void assemble(Program *prog, FILE *ostream) {
                 exit(1);
             }
             code |= (sym->value - instr.lc - 1) & 0x1ff;
-	    instructions[i] = code;
+            instructions[i] = code;
             fwrite(&code, sizeof(code), 1, ostream);
             break;
         case LDR:
             code |= (instr.dr << 9) | (instr.baser << 6) | instr.offset6;
-	    instructions[i] = code;
+            instructions[i] = code;
             fwrite(&code, sizeof(code), 1, ostream);
             break;
         case NOT:
             code |= (instr.dr << 9) | (instr.sr1 << 6) | 0x3f;
-	    instructions[i] = code;
+            instructions[i] = code;
             fwrite(&code, sizeof(code), 1, ostream);
             break;
         case RTI:
             code = instr.op->opcode;
-	    instructions[i] = code;
+            instructions[i] = code;
             fwrite(&code, sizeof(code), 1, ostream);
             break;
         case ST:
@@ -122,7 +122,7 @@ void assemble(Program *prog, FILE *ostream) {
                 exit(1);
             }
             code |= (sym->value - instr.lc - 1) & 0x1ff;
-	    instructions[i] = code;
+            instructions[i] = code;
             fwrite(&code, sizeof(code), 1, ostream);
             break;
         case STI:
@@ -133,48 +133,48 @@ void assemble(Program *prog, FILE *ostream) {
                 exit(1);
             }
             code |= (sym->value - instr.lc - 1) & 0x1ff;
-	    instructions[i] = code;
+            instructions[i] = code;
             fwrite(&code, sizeof(code), 1, ostream);
             break;
         case STR:
             code |= (instr.sr1 << 9) | (instr.baser << 6) | instr.offset6;
-	    instructions[i] = code;
+            instructions[i] = code;
             fwrite(&code, sizeof(code), 1, ostream);
             break;
         case TRAP:
             code |= instr.trapvect8;
-	    instructions[i] = code;
+            instructions[i] = code;
             fwrite(&code, sizeof(code), 1, ostream);
             break;
         case GETC:
             fwrite(&instr.op->opcode, sizeof(instr.op->opcode), 1, ostream);
-	    instructions[i] = instr.op->opcode;
-	    break;
+            instructions[i] = instr.op->opcode;
+            break;
         case OUT:
             fwrite(&instr.op->opcode, sizeof(instr.op->opcode), 1, ostream);
-	    instructions[i] = instr.op->opcode;
-	    break;
+            instructions[i] = instr.op->opcode;
+            break;
         case PUTS:
             fwrite(&instr.op->opcode, sizeof(instr.op->opcode), 1, ostream);
-	    instructions[i] = instr.op->opcode;
-	    break;
+            instructions[i] = instr.op->opcode;
+            break;
         case IN:
             fwrite(&instr.op->opcode, sizeof(instr.op->opcode), 1, ostream);
-	    instructions[i] = instr.op->opcode;
-	    break;
+            instructions[i] = instr.op->opcode;
+            break;
         case PUTSP:
             fwrite(&instr.op->opcode, sizeof(instr.op->opcode), 1, ostream);
-	    instructions[i] = instr.op->opcode;
-	    break;
+            instructions[i] = instr.op->opcode;
+            break;
         case HALT:
             fwrite(&instr.op->opcode, sizeof(instr.op->opcode), 1, ostream);
-	    instructions[i] = instr.op->opcode;
+            instructions[i] = instr.op->opcode;
             break;
         case FILL:
         case BLKW:
         case STRINGZ:
             fwrite(&instr.val, sizeof(instr.val), 1, ostream);
-	    instructions[i] = instr.val;
+            instructions[i] = instr.val;
             break;
         case END:
             break;

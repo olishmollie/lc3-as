@@ -102,7 +102,7 @@ Symbol *newSymbol(Table *table, char *name, int value) {
 
 void deleteSymbol(Symbol *symbol) {
     if (symbol->next) {
-	deleteSymbol(symbol->next);
+        deleteSymbol(symbol->next);
     }
     free(symbol->name);
     free(symbol);

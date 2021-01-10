@@ -4,6 +4,6 @@
 #include "common.h"
 #include "parse.h"
 
-void assemble(Program *prog, FILE* ostream);
+void assemble(Program *prog, FILE *ostream);
 
 #endif

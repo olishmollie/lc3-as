@@ -29,7 +29,7 @@ enum {
     IN = 0xf023,
     PUTSP = 0xf024,
     HALT = 0xf025,
-    
+
     /* Directives */
     ORIG = 0xffff,
     FILL = 0xfffe,
@@ -55,6 +55,5 @@ extern Operation operations[];
  * Otherwise, it returns -1.
  */
 uint16_t findOperation(char *name);
-
 
 #endif

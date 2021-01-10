@@ -37,9 +37,7 @@ Instr *nextInstr(Program *prog) {
     return instr;
 }
 
-Instr *curInstr(Program *prog) {
-    return &prog->instructions[prog->lc];
-}
+Instr *curInstr(Program *prog) { return &prog->instructions[prog->lc]; }
 
 typedef struct Parser {
     uint16_t line;
@@ -53,13 +51,9 @@ void initParser(Parser *parser, FILE *istream) {
     parser->cur = toupper(getc(istream));
 }
 
-void deleteParser(Parser *parser) {
-    fclose(parser->istream);
-}
+void deleteParser(Parser *parser) { fclose(parser->istream); }
 
-uint16_t eof(Parser *parser) {
-    return parser->cur == EOF;
-}
+uint16_t eof(Parser *parser) { return parser->cur == EOF; }
 
 char advance(Parser *parser, int ci) {
     parser->cur = ci ? toupper(getc(parser->istream)) : getc(parser->istream);
@@ -99,37 +93,33 @@ void expect(Parser *parser, char c) {
     advance(parser, 1);
 }
 
-uint16_t isdelim(char c) {
-    return c == ';' || c == ',' || isspace(c);
-}
+uint16_t isdelim(char c) { return c == ';' || c == ',' || isspace(c); }
 
-uint16_t ishex(char c) {
-    return (c >= 'A' && c <= 'F') || isdigit(c);
-}
+uint16_t ishex(char c) { return (c >= 'A' && c <= 'F') || isdigit(c); }
 
 uint16_t hexval(char c) {
     uint16_t val;
     if (isdigit(c)) {
-	return c - '0';
+        return c - '0';
     }
     switch (c) {
     case 'A':
-	val = 10;
-	break;
+        val = 10;
+        break;
     case 'B':
-	val = 11;
-	break;
+        val = 11;
+        break;
     case 'C':
-	val = 12;
-	break;
+        val = 12;
+        break;
     case 'D':
-	val = 13;
-	break;
+        val = 13;
+        break;
     case 'E':
-	val = 14;
-	break;
+        val = 14;
+        break;
     case 'F':
-	val = 15;
+        val = 15;
     }
     return val;
 }
@@ -340,11 +330,11 @@ void parseOperands(Parser *parser, Program *prog, Instr *instr) {
         instr->pcoffset9 = parseSymbol(parser, prog);
         break;
     case JMP:
-	if (instr->op->ret) {
-	    instr->baser = 0x7;
-	} else {
-	    instr->baser = parseRegister(parser);
-	}
+        if (instr->op->ret) {
+            instr->baser = 0x7;
+        } else {
+            instr->baser = parseRegister(parser);
+        }
         break;
     case JSR:
         skipSpaces(parser);
@@ -497,10 +487,10 @@ void makeSymbolFile(char *fname, Program *prog) {
     fclose(sf);
 }
 
-/* 
- * PrintProgram prints a JSON like representation of instructions 
+/*
+ * PrintProgram prints a JSON like representation of instructions
  * to stdout; it is useful for debugging.
-*/
+ */
 void printProgram(Program *prog) {
     for (int i = 0; i < prog->lc; i++) {
         Instr instr = prog->instructions[i];
@@ -509,7 +499,7 @@ void printProgram(Program *prog) {
         printf("\tlc: \\x%x\n", instr.lc);
         printf("\tname: %s\n", instr.op ? instr.op->name : "");
         printf("\topcode: \\x%x\n", instr.op ? instr.op->opcode : 0xffff);
-	printf("\tnzp: \\x%x\n", instr.op ? instr.op->nzp : 0xffff);
+        printf("\tnzp: \\x%x\n", instr.op ? instr.op->nzp : 0xffff);
         printf("\tdr: \\x%x\n", instr.dr);
         printf("\tsr1: \\x%x\n", instr.sr1);
         printf("\tsr2: \\x%x\n", instr.sr2);
