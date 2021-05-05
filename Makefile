@@ -1,7 +1,19 @@
-all: core assembler
+CCFLAGS := -std=c99 -g -Wall -Werror -Wpedantic
+OBJ := directive.o emit.o lex.o lexeme.o op.o panic.o parse.o symbol.o token.o
+AS := lcas
+VM := lc3
 
-assembler: src/lca.c src/asm.c src/op.c src/parse.c src/sym.c
-	clang src/lca.c src/asm.c src/op.c src/parse.c src/sym.c -o lca
+all: $(AS) $(VM)
 
-core: src/core.c
-	clang src/core.c -o lc3
+$(AS): main.c $(OBJ)
+	$(CC) $(CCFLAGS) -o $@ $^
+
+$(VM): core.c
+	$(CC) $(CCFLAGS) -o $@ $<
+
+%.o: %.c %.h
+	$(CC) $(CCFLAGS) $< -c -o $@
+
+.PHONY: all clean
+clean:
+	rm -rf $(VM) $(VM).dSYM $(AS) $(AS).dSYM *.o *.lc3 *.data

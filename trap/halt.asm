@@ -1,5 +1,5 @@
 ;;; HALT Service Routine
-		
+
 	.ORIG 	xFD70
 		ST 		R7, SaveR7
 		ST 		R0, SaveR0
@@ -9,7 +9,7 @@
 		OUT
 
 		LEA 	R0, Message
-		PUTS 	
+		PUTS
 
 		LDI 	R1, MCR			; Clear MCR[15] to halt machine
 		LD 		R0, MASK
