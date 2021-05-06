@@ -81,9 +81,7 @@ int main(int argc, char **argv)
 {
 
     if (argc != 2)
-    {
         printf("usage: blah blah blah\n");
-    }
 
     VM vm;
     boot(&vm);
@@ -138,9 +136,7 @@ int main(int argc, char **argv)
             flgs = vm.reg[PSR] & 0x7;
             cond = (instr >> 9) & 0x7;
             if (flgs & cond)
-            {
                 vm.reg[PC] += pcoffset9;
-            }
             break;
         case JMP:
             baser = (instr >> 6) & 0x7;
@@ -262,12 +258,12 @@ void boot(VM *vm)
     *vm->mcr = 0x8000;
 
     /* Trap table */
-    vm->mem[GETC & 0xff] = 0x0400;
-    vm->mem[OUT & 0xff] = 0x0430;
-    vm->mem[PUTS & 0xff] = 0x0450;
-    vm->mem[IN & 0xff] = 0x04a0;
-    vm->mem[PUTSP & 0xff] = 0x04e0;
-    vm->mem[HALT & 0xff] = 0xfd70;
+    vm->mem[GETC] = 0x0400;
+    vm->mem[OUT] = 0x0430;
+    vm->mem[PUTS] = 0x0450;
+    vm->mem[IN] = 0x04a0;
+    vm->mem[PUTSP] = 0x04e0;
+    vm->mem[HALT] = 0xfd70;
 
     /* Load trap routines */
     memcpy(&vm->mem[0x0400], &tr_getc, sizeof(tr_getc));
@@ -336,9 +332,7 @@ uint16_t read_obj_file(VM *vm, FILE *file)
 uint16_t sext(uint16_t x, uint16_t nbits)
 {
     if ((x >> (nbits - 1)) & 1)
-    {
         x |= (0xffff << nbits);
-    }
     return x;
 }
 
@@ -347,16 +341,10 @@ void setcc(VM *vm, uint16_t r)
     vm->reg[PSR] &= 0x0;
     uint16_t t = vm->reg[r], c;
     if (t >> 15)
-    {
         c = 0x4;
-    }
     else if (t == 0)
-    {
         c = 0x2;
-    }
     else
-    {
         c = 0x1;
-    }
     vm->reg[PSR] |= c;
 }
