@@ -7,10 +7,10 @@ typedef struct instr_s
     int type;
     int lc;
     int p;
+    int alt;
     int arg1;
     int arg2;
     int arg3;
-    int alt;
 } instr_t;
 
 void instr_debug(instr_t *instr);

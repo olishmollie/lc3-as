@@ -2,8 +2,8 @@
 
 	.ORIG x0400
 
-		ST 		R1, SaveR1 		; Save registers
-		ST 		R0, SaveR0
+		ST 		R0, SaveR0 		; Save registers
+		ST 		R1, SaveR1
 
 LOOP	LDI 	R1, KBSR 		; Check availability of keyboard
 		BRzp 	LOOP
@@ -14,8 +14,8 @@ LOOP	LDI 	R1, KBSR 		; Check availability of keyboard
 
 		RET 					; a.k.a JMP R7
 
+SaveR0 	.BLKW #1
 SaveR1 	.BLKW #1
-SaveR2 	.BLKW #1
 KBSR 	.FILL xFE00
 KBDR 	.FILL xFE02
 	.END
