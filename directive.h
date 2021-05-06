@@ -5,6 +5,7 @@
 #define FILL 1
 #define BLKW 2
 #define STRINGZ 3
+#define END 4
 
 extern char *dirtable[];
 

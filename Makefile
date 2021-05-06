@@ -1,5 +1,5 @@
 CCFLAGS := -std=c99 -g -Wall -Werror -Wpedantic
-OBJ := directive.o emit.o lex.o lexeme.o op.o panic.o parse.o symbol.o token.o
+OBJ := directive.o emit.o instr.o lex.o lexeme.o op.o panic.o parse.o symbol.o token.o
 AS := lcas
 VM := lc3
 

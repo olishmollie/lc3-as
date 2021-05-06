@@ -25,13 +25,13 @@
 
 		RET
 
-MCR 		.FILL 	XFFFE
-MASK 		.FILL 	X7FFF
+MCR 		.FILL 	xFFFE
+MASK 		.FILL 	x7FFF
 
 SaveR7 		.BLKW 	#1
 SaveR0 		.BLKW 	#1
 SaveR1 		.BLKW 	#1
 
 Newline 	.FILL 	x000A
-Message 	.STRINGZ "--- Halting the processor. ---"
+Message 	.STRINGZ "--- Halting the processor. ---\n"
 	.END

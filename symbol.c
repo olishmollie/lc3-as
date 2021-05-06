@@ -14,7 +14,7 @@ int lookup_sym(char *s)
 {
     int p;
     for (p = lastsym; p > -1; --p)
-        if (strcmp(symtable[p].lexptr, s) == 0)
+        if (strcmp(symtable[p].lexeme, s) == 0)
             return p;
     return -1;
 }
@@ -30,7 +30,7 @@ int insert_sym(char *s, int offset)
     symtable[lastsym].offset = offset;
 
     p = insert_lexeme(s);
-    symtable[lastsym].lexptr = &lextable[p];
+    symtable[lastsym].lexeme = &lextable[p];
 
     return lastsym;
 }

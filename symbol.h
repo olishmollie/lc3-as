@@ -3,7 +3,7 @@
 
 typedef struct sym_s
 {
-    char *lexptr;
+    char *lexeme;
     int offset;
     int defined;
 } sym_t;

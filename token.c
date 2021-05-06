@@ -15,7 +15,7 @@ char *tokstr(int token, int tokenval)
     case DIRECTIVE:
         return "DIRECTIVE";
     case SYMBOL:
-        return tokenval > 0 ? symtable[tokenval].lexptr : "ID";
+        return tokenval > 0 ? symtable[tokenval].lexeme : "ID";
     case REG:
         return "REG";
     case COMMA:

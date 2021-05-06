@@ -181,19 +181,22 @@ int lexan(void)
 
             return NUMBER;
         }
-        else if (c == 'R')
-        {
-            c = fgetc(infile);
-
-            if (!isdigit(c) || c < '0' || c > '7')
-                panic("invalid register R%c, line %d", c, lineno);
-
-            tokenval = c - '0';
-            return REG;
-        }
         else if (isalpha(c))
         {
             int p, b = 0;
+
+            if (c == 'R')
+            {
+                c = fgetc(infile);
+
+                if (isdigit(c) && c <= '7')
+                {
+                    tokenval = c - '0';
+                    return REG;
+                }
+
+                lexbuf[b++] = 'R';
+            }
 
             while (isalnum(c))
             {

@@ -1,6 +1,6 @@
 #include <string.h>
 
-char *dirtable[] = {"ORIG", "FILL", "BLKW", "STRINGZ"};
+char *dirtable[] = {"ORIG", "FILL", "BLKW", "STRINGZ", "END"};
 
 int lookup_directive(char *lexeme)
 {

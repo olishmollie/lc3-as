@@ -4,11 +4,11 @@
 
 #include "directive.h"
 #include "global.h"
+#include "instr.h"
 #include "lex.h"
 #include "op.h"
 #include "panic.h"
 #include "parse.h"
-#include "string.h"
 #include "symbol.h"
 #include "token.h"
 
@@ -47,7 +47,7 @@ void label(instr_t *instr)
     instr->labelp = tokenval;
     match(SYMBOL);
     if (symtable[instr->labelp].offset != -1)
-        panic("multiply defined label '%s'\n", symtable[instr->labelp].lexptr);
+        panic("multiply defined label '%s'\n", symtable[instr->labelp].lexeme);
     symtable[instr->labelp].offset = lc;
 }
 
@@ -319,6 +319,8 @@ void line()
         panic("unexpected token %s, line %d", tokstr(lookahead, tokenval),
               lineno);
 
+    instr_debug(&instr);
+
     writeto(lfd, &instr, sizeof(instr));
 
     ++lc;
@@ -328,24 +330,6 @@ void program()
 {
     while (!feof(infile))
         line();
-}
-
-void pinstr(instr_t *instr)
-{
-    printf("instr_t{\n");
-    printf("\tTYPE: %s\n", instr->type == OP ? "OP" : "DIRECTIVE");
-
-    if (instr->labelp > -1)
-        printf("\tLABEL: %s\n", symtable[instr->labelp].lexptr);
-
-    printf("\tMNEMONIC: %s\n",
-           instr->type == OP ? optable[instr->p].mnemonic : dirtable[instr->p]);
-
-    printf("\tARG1: %d\n", instr->arg1);
-    printf("\tARG2: %d\n", instr->arg2);
-    printf("\tARG3: %d\n", instr->arg3);
-
-    printf("}\n");
 }
 
 void parse()

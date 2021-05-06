@@ -6,6 +6,7 @@
 #include "directive.h"
 #include "emit.h"
 #include "global.h"
+#include "instr.h"
 #include "lexeme.h"
 #include "op.h"
 #include "panic.h"
@@ -14,10 +15,13 @@
 #include "token.h"
 
 /* Data file descriptor. */
-int lfd;
+int lfd = 0;
 
 /* Output file descriptor */
-int ofd;
+int ofd = 0;
+
+/* Flag raised on .END directive */
+int done = 0;
 
 void emit_op(instr_t *instr)
 {
@@ -49,7 +53,7 @@ void emit_op(instr_t *instr)
     case BR:
         sym = &symtable[instr->arg1];
         if (sym->offset == -1)
-            panic("undefined symbol '%s'", sym->lexptr);
+            panic("undefined symbol '%s'", sym->lexeme);
         code |= op->attr << 9; /* nzp */
         code |= (sym->offset - instr->lc - 1) & 0x1ff;
         write(ofd, &code, sizeof(code));
@@ -68,7 +72,7 @@ void emit_op(instr_t *instr)
         {
             sym = &symtable[instr->arg1];
             if (sym->offset == -1)
-                panic("undefined symbol '%s'", sym->lexptr);
+                panic("undefined symbol '%s'", sym->lexeme);
             code |= (0x1 << 11) | ((sym->offset - instr->lc - 1) & 0x3ff);
         }
         write(ofd, &code, sizeof(code));
@@ -77,7 +81,7 @@ void emit_op(instr_t *instr)
         code |= instr->arg1 << 9;
         sym = &symtable[instr->arg2];
         if (sym->offset == -1)
-            panic("undefined symbol '%s'", sym->lexptr);
+            panic("undefined symbol '%s'", sym->lexeme);
         code |= (sym->offset - instr->lc - 1) & 0x1ff;
         write(ofd, &code, sizeof(code));
         break;
@@ -85,7 +89,7 @@ void emit_op(instr_t *instr)
         code |= instr->arg1 << 9;
         sym = &symtable[instr->arg2];
         if (sym->offset == -1)
-            panic("undefined symbol '%s'", sym->lexptr);
+            panic("undefined symbol '%s'", sym->lexeme);
         code |= (sym->offset - instr->lc - 1) & 0x1ff;
         write(ofd, &code, sizeof(code));
         break;
@@ -93,7 +97,7 @@ void emit_op(instr_t *instr)
         code |= instr->arg1 << 9;
         sym = &symtable[instr->arg2];
         if (sym->offset == -1)
-            panic("undefined symbol '%s'", sym->lexptr);
+            panic("undefined symbol '%s'", sym->lexeme);
         code |= (sym->offset - instr->lc - 1) & 0x1ff;
         write(ofd, &code, sizeof(code));
         break;
@@ -113,7 +117,7 @@ void emit_op(instr_t *instr)
         code |= instr->arg1 << 9;
         sym = &symtable[instr->arg2];
         if (sym->offset == -1)
-            panic("undefined symbol '%s'", sym->lexptr);
+            panic("undefined symbol '%s'", sym->lexeme);
         code |= (sym->offset - instr->lc - 1) & 0x1ff;
         write(ofd, &code, sizeof(code));
         break;
@@ -121,7 +125,7 @@ void emit_op(instr_t *instr)
         code |= instr->arg1 << 9;
         sym = &symtable[instr->arg2];
         if (sym->offset == -1)
-            panic("undefined symbol '%s'", sym->lexptr);
+            panic("undefined symbol '%s'", sym->lexeme);
         code |= (sym->offset - instr->lc - 1) & 0x1ff;
         write(ofd, &code, sizeof(code));
         break;
@@ -160,6 +164,10 @@ void emit_dir(instr_t *instr)
         while ((c = *s++))
             write(ofd, &c, INSTR_WIDTH);
         write(ofd, &c, INSTR_WIDTH); /* null word */
+        break;
+    case END:
+        done = 1;
+        break;
     }
 }
 
@@ -175,7 +183,7 @@ void emit()
     if (ofd == -1)
         panic("emit: unable to open output file");
 
-    while (read(lfd, &instr, sizeof(instr)))
+    while (!done && read(lfd, &instr, sizeof(instr)))
     {
         if (instr.type == OP)
             emit_op(&instr);
